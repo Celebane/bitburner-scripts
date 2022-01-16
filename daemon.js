@@ -240,7 +240,7 @@ export async function main(ns) {
         { interval: 33000, name: "hacknet-upgrade-manager.js", shouldRun: shouldUpgradeHacknet, args: () => ["-c", "--max-payoff-time", "8h", "--max-spend", ns.getServerMoneyAvailable("home") * 0.01] },
         // Don't start auto-joining factions until we're holding 1 billion (so coding contracts returning money is probably less critical) or we've joined one already
         {
-            interval: 34000, name: "faction-manager.js", requiredServer: "home", args: ["-v", "-u", "-i"],
+            interval: 34000, name: "faction-manager.js", requiredServer: "home", args: ["-v", "-u"],
             shouldRun: () => 4 in dictSourceFiles && (playerStats.factions.length > 0 || ns.getServerMoneyAvailable("home") > 1e9) &&
                 (ns.getServerMaxRam("home") >= 128 / (2 ** dictSourceFiles[4])) // Uses singularity functions, and higher SF4 levels result in lower RAM requirements
         },
