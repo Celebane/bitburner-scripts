@@ -1,4 +1,4 @@
-import { disableLogs, formatDuration, formatMoney } from './helpers.js'
+import { disableLogs, formatDuration } from './helpers.js'
 
 const argsSchema = [
     ['v', false], // Verbose
@@ -7,6 +7,7 @@ const argsSchema = [
     ['liquidate', false],
     ['interval', 1000], // Rate at which the program runs and spends hashes
     ['spend-on', 'Sell for Money'],
+    ['spend-on-server', undefined],
 ];
 
 const purchaseOptions = ['Sell for Money', 'Sell for Corporation Funds', 'Exchange for Corporation Research', 'Generate Coding Contract', 'Improve Studying', 'Improve Gym Training'];
@@ -26,24 +27,26 @@ export async function main(ns) {
     const liquidate = options.l || options.liquidate;
     const interval = options.interval;
     const toBuy = options['spend-on'].replaceAll("_", " ");
+    const spendOnServer = options['spend-on-server']?.replaceAll("_", " ") ?? undefined;
     disableLogs(ns, ['sleep']);
     ns.print(`Starting spend-hacknet-hashes.js to ensure no hashes go unspent. Will check in every ${formatDuration(interval)}`);
     ns.print(liquidate ? `-l --liquidate mode active! Will spend all hashes on money as soon as possible.` :
         `Only spending hashes every when near capacity to avoid wasting them.`);
-    if(ns.hacknet.hashCapacity() == 0)
-        return ns.print('We have hacknet nodes, not hacknet servers, so spending hashes is not applicable.');
-
     while (true) {
-        let capacity = ns.hacknet.hashCapacity() || Number.MAX_VALUE;
+        let capacity = ns.hacknet.hashCapacity() || 0;
         let startingHashes = ns.hacknet.numHashes() || 0;
-        let globalProduction = Array.from({ length: ns.hacknet.numNodes() }, (_, i) => ns.hacknet.getNodeStats(i))
+        let nodes = ns.hacknet.numNodes();
+        if (capacity == 0 && nodes > 0)
+            return ns.print('We have hacknet nodes, not hacknet servers, so spending hashes is not applicable.');
+
+        let globalProduction = Array.from({ length: nodes }, (_, i) => ns.hacknet.getNodeStats(i))
             .reduce((total, node) => total + node.production, 0);
         //ns.print(`Current hacknet production: ${globalProduction.toPrecision(3)}...`);
         // Spend hashes before we lose them
         let reserve = 10 + globalProduction * interval / 1000; // If we are this far from our capacity, start spending
         let success = true;
         while (success && ns.hacknet.numHashes() > (liquidate ? 4 : capacity - reserve))
-            success = ns.hacknet.spendHashes(toBuy);
+            success = ns.hacknet.spendHashes(toBuy, spendOnServer);
         if (!success)
             ns.print(`Weird, failed to spend hashes. (Have: ${ns.hacknet.numHashes()} Capacity: ${ns.hacknet.hashCapacity()}`);
         if (verbose && ns.hacknet.numHashes() < startingHashes)
